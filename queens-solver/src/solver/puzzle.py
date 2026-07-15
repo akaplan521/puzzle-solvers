@@ -11,9 +11,11 @@ class Puzzle:
     2-D integer array
     ex:
         puzzle = Puzzle([
-            [0, 0, 1],
-            [0, 2, 1],
-            [2, 2, 1],
+            [0, 0, 1, 1, 2],
+            [0, 1, 1, 1, 2],
+            [0, 0, 3, 2, 2],
+            [0, 4, 4, 4, 2],
+            [0, 4, 4, 2, 2]
         ])
     InvalidPuzzleError if the grid is not a valid puzzle.
     """
@@ -47,7 +49,7 @@ class Puzzle:
             )
         if rows < 1: 
             raise InvalidPuzzleError("empty puzzle")
-        elif rows < 2:
+        elif rows < 4:
             raise InvalidPuzzleError("puzzle too small")
 
     def _check_values(self):
