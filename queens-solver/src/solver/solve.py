@@ -3,22 +3,27 @@ import numpy as np
 from solver.puzzle import Puzzle
 
 def solve(puzzle: Puzzle):
-    """ solve the puzzle and return an array representing solution """
-
-    Q = cp.boolvar(shape=(n, n)) #n x n numpy array of boolean decision variables
+    """ solve the puzzle and return a tuple containing the status and solution """
     n = puzzle.n
     regions = puzzle.regions
-
+    Q = cp.boolvar(shape=(n, n)) #n x n numpy array of boolean decision variables
+    #create model
     m = cp.Model()  
 
     #add constraints
     add_row_cols(m, Q, n)    
     add_region(m, Q, n, regions)      
-    add_adjacent(m, Q, n)
-    add_unique()   
+    add_adjacent(m, Q, n)  
 
-    #find unique solution
-    m.solve()
+    #find solution
+    if not m.solve():
+        return ("No solution", None)
+
+    solution = Q.value()
+    add_unique(m, Q, n, solution)
+    if m.solve():
+        return ("Solution not unique", solution)
+    return ("Unique solution", solution)
 
 def add_row_cols(m, Q, n):
     """ Adding one queen per row and column contraint. row and col sums must be 1 """
@@ -27,7 +32,7 @@ def add_row_cols(m, Q, n):
         m += (cp.sum(Q[:, i]) == 1) 
 
 def add_region(m, Q, n, regions):
-    """ Adding one queen per region contraint. region sum must be 1 """
+    """ Adding one queen per region constraint. region sum must be 1 """
     for k in range(n):
         m += (cp.sum(Q[regions == k]) == 1)
 
@@ -41,9 +46,6 @@ def add_adjacent(m, Q, n):
             if j != n - 1:
                 m += Q[i, j].implies(~Q[i+1, j+1]) #queen implies not queen bottom diagonal right
 
-def add_unique():
-    pass
-    #unique solution constraint 
-
-
-      
+def add_unique(m, Q, n, solution):
+    """ Adding unique solution constraint. There must only be one solution """
+    m += (cp.sum(Q[solution]) < n) #"< n queens fall on the same n cells as this solution
