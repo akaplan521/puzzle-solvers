@@ -1,29 +1,47 @@
+from enum import Enum, auto
+
 import cpmpy as cp
 import numpy as np
+
 from solver.puzzle import Puzzle
 
+class SolveStatus(Enum):
+    """three possible outcomes of solving a puzzle """
+    UNIQUE = auto() #exactly one solution (correct behavior)
+    MULTIPLE = auto() #at least two solutions
+    UNSAT = auto() #no solution
+
 def solve(puzzle: Puzzle):
-    """ solve the puzzle and return a tuple containing the status and solution """
+    """Solve the puzzle and check its solution is unique.
+ 
+    Returns a tuple (status, solution):
+      - (SolveStatus.UNIQUE, ndarray)   - solution is an n x n boolean numpy
+                                           array True where queens go
+      - (SolveStatus.MULTIPLE, ndarray) - solution is the first solution found
+                                           
+      - (SolveStatus.UNSAT, None)       - no solution exists
+    """
     n = puzzle.n
     regions = puzzle.regions
-    Q = cp.boolvar(shape=(n, n)) #n x n numpy array of boolean decision variables
+    Q = cp.boolvar(shape=(n, n))  #n x n numpy array of boolean decision variables
+ 
     #create model
-    m = cp.Model()  
-
+    m = cp.Model()
+ 
     #add constraints
-    add_row_cols(m, Q, n)    
-    add_region(m, Q, n, regions)      
-    add_adjacent(m, Q, n)  
-
+    add_row_cols(m, Q, n)
+    add_region(m, Q, n, regions)
+    add_adjacent(m, Q, n)
+ 
     #find solution
     if not m.solve():
-        return ("No solution", None)
-
+        return (SolveStatus.UNSAT, None)
+ 
     solution = Q.value()
     add_unique(m, Q, n, solution)
     if m.solve():
-        return ("Solution not unique", solution)
-    return ("Unique solution", solution)
+        return (SolveStatus.MULTIPLE, solution)
+    return (SolveStatus.UNIQUE, solution) 
 
 def add_row_cols(m, Q, n):
     """ Adding one queen per row and column contraint. row and col sums must be 1 """
