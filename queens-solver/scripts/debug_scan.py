@@ -57,6 +57,13 @@ class Dumper:
             canvas[y:, x] = (60, 60, 60)
         self(name, canvas)
  
+def order_corners(corners: np.ndarray) -> np.ndarray:
+    """order 4 corner points: TL, TR, BR, BL
+    assumes a roughly axis-aligned quad
+    """
+    s = corners.sum(axis=1)
+    d = corners[:, 0] - corners[:, 1]
+    return corners[[s.argmin(), d.argmax(), s.argmax(), d.argmin()]]
 
 def analyze(image: np.ndarray, dump: Dumper) -> None:
     
@@ -84,7 +91,7 @@ def analyze(image: np.ndarray, dump: Dumper) -> None:
         closed_gaps, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
     if not contours:
-        print("    !! no contours found")
+        print(" !!!!no contours found !!!!")
         return
     board = max(contours, key=cv2.contourArea)
 
@@ -92,30 +99,30 @@ def analyze(image: np.ndarray, dump: Dumper) -> None:
     cv2.drawContours(contour_view, [board], -1, (0, 0, 255), 2)
     dump("contour", contour_view)
 
-    #convex hull bridges any notch so approxPolyDP only ever sees a convex board outline
-    hull = cv2.convexHull(board)
+    x, y, w, h = cv2.boundingRect(board)
+    corners = np.array([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], dtype=np.float32)  
+    # TL, TR, BR, BL by construction
 
-    epsilon = 0.02 * cv2.arcLength(hull, closed=True)
-    approx = cv2.approxPolyDP(hull, epsilon, closed=True)
-    print(f"    approxPolyDP -> {len(approx)} points (epsilon={epsilon:.1f}px)")
+    # if the blob is roughly the full rectangle, hull area
+    #approximately equals box area. big difference means refuse
+    hull = cv2.convexHull(board)
+    fill = cv2.contourArea(hull) / (w * h)
+    print(f"    bbox=({x},{y},{w},{h})  hull/box fill={fill:.3f}")
+    if fill < 0.80:
+        print("    !!!blob fills too little of its bounding box!!!!!!   ")
+        return
 
     corner_view = image.copy()
-    cv2.drawContours(corner_view, [approx], -1, (0, 255, 0), 2)
-    for point in approx.reshape(-1, 2):
+    for point in corners.astype(int):
         cv2.circle(corner_view, tuple(point), 12, (0, 0, 255), 3)
     dump("corners", corner_view)
 
-    if len(approx) != 4:
-        print("    !! expected 4 corners")
-        return
-    corners = approx.reshape(4, 2).astype(np.float32)
-    s, d = corners.sum(axis=1), corners[:, 0] - corners[:, 1]
-    ordered_corners = corners[[s.argmin(), d.argmax(), s.argmax(), d.argmin()]] #TL, TR, BR, BL
+    ordered = order_corners(corners)
     destination = np.array(
         [[0, 0], [WARP_SIZE, 0], [WARP_SIZE, WARP_SIZE], [0, WARP_SIZE]],
         dtype=np.float32,
     )
-    warp_matrix = cv2.getPerspectiveTransform(ordered_corners, destination)
+    warp_matrix = cv2.getPerspectiveTransform(ordered, destination)
     warped = cv2.warpPerspective(image, warp_matrix, (WARP_SIZE, WARP_SIZE))
     dump("warped", warped)
 
