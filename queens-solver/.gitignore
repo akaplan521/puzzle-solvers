@@ -1,2 +1,4 @@
 .venv/
 *.egg-info/
+debug_out/
+scripts/debug_helper.py
