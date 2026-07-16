@@ -12,6 +12,7 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
 """esitmated by brute force checking the masks for the 8 fixtures. likely fragile
 but can keep for now"""
 CHROMA_THRESHOLD = 7
+WARP_SIZE = 840
 
 class Dumper:
     """Writes debug images into a folder """
@@ -108,6 +109,15 @@ def analyze(image: np.ndarray, dump: Dumper) -> None:
         print("    !! expected 4 corners")
         return
     corners = approx.reshape(4, 2).astype(np.float32)
+    s, d = corners.sum(axis=1), corners[:, 0] - corners[:, 1]
+    ordered_corners = corners[[s.argmin(), d.argmax(), s.argmax(), d.argmin()]] #TL, TR, BR, BL
+    destination = np.array(
+        [[0, 0], [WARP_SIZE, 0], [WARP_SIZE, WARP_SIZE], [0, WARP_SIZE]],
+        dtype=np.float32,
+    )
+    warp_matrix = cv2.getPerspectiveTransform(ordered_corners, destination)
+    warped = cv2.warpPerspective(image, warp_matrix, (WARP_SIZE, WARP_SIZE))
+    dump("warped", warped)
 
 
     """ bin_width = 2
