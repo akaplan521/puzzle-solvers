@@ -65,14 +65,50 @@ def analyze(image: np.ndarray, dump: Dumper) -> None:
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) #convert to hsv
     dump("saturation", hsv_image[:, :, 1])
 
-    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)  # convert to Lab
-    a = lab_image[:, :, 1].astype(np.float32) - 128.0   # widen BEFORE subtracting
+    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab) #convert to Lab
+    a = lab_image[:, :, 1].astype(np.float32) - 128.0   
     b = lab_image[:, :, 2].astype(np.float32) - 128.0
-    chroma = np.sqrt(a * a + b * b)                     # distance from neutral
+    chroma = np.sqrt(a * a + b * b) #distance from neutral
     dump("chroma", chroma)
 
-    mask = chroma > CHROMA_THRESHOLD   # boolean array, shape (H, W)
+    mask = chroma > CHROMA_THRESHOLD  
     dump("mask", mask)
+
+    mask_uint8 = mask.astype('uint8') * 255
+    kernel = np.ones((12, 12), np.uint8)
+    closed_gaps = cv2.morphologyEx(mask_uint8, cv2.MORPH_CLOSE, kernel)
+    dump("closed gaps", closed_gaps)
+
+    contours, _ = cv2.findContours(
+        closed_gaps, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+    if not contours:
+        print("    !! no contours found")
+        return
+    board = max(contours, key=cv2.contourArea)
+
+    contour_view = image.copy()
+    cv2.drawContours(contour_view, [board], -1, (0, 0, 255), 2)
+    dump("contour", contour_view)
+
+    #convex hull bridges any notch so approxPolyDP only ever sees a convex board outline
+    hull = cv2.convexHull(board)
+
+    epsilon = 0.02 * cv2.arcLength(hull, closed=True)
+    approx = cv2.approxPolyDP(hull, epsilon, closed=True)
+    print(f"    approxPolyDP -> {len(approx)} points (epsilon={epsilon:.1f}px)")
+
+    corner_view = image.copy()
+    cv2.drawContours(corner_view, [approx], -1, (0, 255, 0), 2)
+    for point in approx.reshape(-1, 2):
+        cv2.circle(corner_view, tuple(point), 12, (0, 0, 255), 3)
+    dump("corners", corner_view)
+
+    if len(approx) != 4:
+        print("    !! expected 4 corners")
+        return
+    corners = approx.reshape(4, 2).astype(np.float32)
+
 
     """ bin_width = 2
     values = chroma.ravel()
