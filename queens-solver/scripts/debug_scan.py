@@ -9,7 +9,9 @@ import cv2
 import numpy as np
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".bmp", ".webp"}
-
+"""esitmated by brute force checking the masks for the 8 fixtures. likely fragile
+but can keep for now"""
+CHROMA_THRESHOLD = 7
 
 class Dumper:
     """Writes debug images into a folder """
@@ -63,7 +65,30 @@ def analyze(image: np.ndarray, dump: Dumper) -> None:
     hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV) #convert to hsv
     dump("saturation", hsv_image[:, :, 1])
 
+    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)  # convert to Lab
+    a = lab_image[:, :, 1].astype(np.float32) - 128.0   # widen BEFORE subtracting
+    b = lab_image[:, :, 2].astype(np.float32) - 128.0
+    chroma = np.sqrt(a * a + b * b)                     # distance from neutral
+    dump("chroma", chroma)
 
+    mask = chroma > CHROMA_THRESHOLD   # boolean array, shape (H, W)
+    dump("mask", mask)
+
+    """ bin_width = 2
+    values = chroma.ravel()
+    top = float(values.max())
+    edges = np.arange(0, top + bin_width, bin_width)
+    counts, _ = np.histogram(values, bins=edges)
+
+    peak = counts.max()
+    for lo, count in zip(edges[:-1], counts):
+        bar = "#" * int(50 * count / peak) if peak else ""
+        pct = 100.0 * count / values.size
+        print(f"    {lo:5.0f}-{lo + bin_width:<5.0f} {pct:6.2f}% {bar}")
+
+    p = np.percentile(values, [50, 90, 95, 99])
+    print(f"    median={p[0]:.1f}  p90={p[1]:.1f}  p95={p[2]:.1f}  p99={p[3]:.1f}")
+ """
 def iter_images(path: Path):
     if path.is_file():
         yield path
