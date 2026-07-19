@@ -1,1 +1,28 @@
-<h1>coming soon</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Queens Solver</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>Queens Puzzle Solver</h1>
+    <p class="hint">Upload a screenshot of a LinkedIn Queens puzzle.</p>
+
+    <div class="controls">
+      <input type="file" id="file-input" accept="image/*">
+      <button id="solve-btn" disabled>Solve</button>
+    </div>
+
+    <p id="status-msg"></p>
+
+    <img id="result-img" alt="" hidden>
+  </main>
+
+  <!-- defer = "run this after the DOM tree is built", so
+       getElementById calls in app.js find their targets -->
+  <script src="app.js" defer></script>
+</body>
+</html>
