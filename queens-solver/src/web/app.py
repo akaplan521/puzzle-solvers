@@ -6,10 +6,12 @@ from fastapi import FastAPI, UploadFile, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from pipeline.processing import process, PipelineStatus
+from pathlib import Path
 
 app = FastAPI()
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024 
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @app.post("/solve")
@@ -48,4 +50,4 @@ async def solve_endpoint(file: UploadFile):
     return response
 
 
-app.mount("/", StaticFiles(directory="src/web/static", html=True), name="static")
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
