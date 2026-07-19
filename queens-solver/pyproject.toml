@@ -10,6 +10,7 @@ dependencies = [
     "opencv-python-headless>=4.10",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
+    "python-multipart"
 ]
 
 [project.optional-dependencies]
